@@ -26,10 +26,10 @@ router.post("/api/peeps/:messageId", async (req: Request, res: Response) => {
   const msg = { peep: peep, peepId: peepId, messageId: messageId };
 
   try {
-    await PeepModel.updateOne(
-      { messageId: messageId },
-      { $push: { peeps: peepData } }
-    );
+    // await PeepModel.updateOne(
+    //   { messageId: messageId },
+    //   { $push: { peeps: peepData } }
+    // );
     console.log(`Peep ${peepId} saved to message ${messageId}`);
 
     const amqpConnection = await amqp.connect("amqp://rabbitmq-service:5672");

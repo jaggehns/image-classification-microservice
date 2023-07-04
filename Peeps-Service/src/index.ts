@@ -1,6 +1,7 @@
 import express from "express";
 const amqp = require("amqplib");
 import PeepModel from "./models/peep";
+const { spawn } = require("child_process");
 
 import mongoose from "mongoose";
 import { router } from "./routes/routes";
@@ -12,20 +13,46 @@ app.use(router);
 async function processMessageMessage(msg: {
   content: { toString: () => any };
 }) {
+  console.time("f2");
   const content = JSON.parse(msg.content.toString());
-  const { messageId } = content;
-  console.log(content);
-  console.log(messageId);
+  // const { messageId } = content;
+  console.log(JSON.stringify(content));
+  // Convert the multi-dimensional array to a JSON string
+  const arrayJsonString = JSON.stringify(content);
+  // console.log(messageId);
 
-  const peepData = {
-    messageId: messageId,
-    peeps: [],
-  };
+  // const peepData = {
+  //   messageId: messageId,
+  //   peeps: [],
+  // };
 
   try {
-    const newPeep = new PeepModel(peepData);
-    await newPeep.save();
+    // const newPeep = new PeepModel(peepData);
+    // await newPeep.save();
+
+    // Spawn the Python script as a child process
+    const pythonProcess = spawn("python", [
+      "classify_image.py",
+      arrayJsonString,
+    ]);
+
+    // Listen for data from the Python script's stdout
+    pythonProcess.stdout.on("data", (data: any) => {
+      console.log(`Python script output: ${data}`);
+    });
+
+    // Listen for any errors from the Python script
+    pythonProcess.stderr.on("data", (data: any) => {
+      // Handle errors, if any
+      console.error(data.toString());
+    });
+
+    // Listen for the Python script to exit
+    pythonProcess.on("close", (code: any) => {
+      console.log(`Python script exited with code ${code}`);
+    });
     console.log("Saved message event to DB");
+    console.timeEnd("f2");
   } catch (error) {
     console.log(error);
   }

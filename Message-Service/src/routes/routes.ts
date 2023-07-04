@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 const amqp = require("amqplib");
 import MessageModel from "../models/message";
+const { spawn } = require("child_process");
 
 const { randomBytes } = require("crypto");
 
@@ -16,32 +17,61 @@ router.get("/api/message", (req: Request, res: Response) => {
 });
 
 router.post("/api/message", async (req: Request, res: Response) => {
-  const { message } = req.body;
-  const messageId = randomBytes(4).toString("hex");
-  const messageData = { message, messageId };
+  console.time("f1");
+  const pythonScript = spawn("python", ["process_image.py"]);
 
-  try {
-    const newMessage = new MessageModel(messageData);
-    await newMessage.save();
-    console.log("Saved Message to DB");
+  let newData = Buffer.from("");
 
-    const connection = await amqp.connect("amqp://rabbitmq-service:5672");
-    console.log("Connected to RabbitMQ");
-    const channel = await connection.createChannel();
-    console.log("Created RabbitMQ channel");
-    await channel.assertExchange("message-exchange", "topic", {
-      durable: false,
-    });
-    await channel.publish(
-      "message-exchange",
-      "messi",
-      Buffer.from(JSON.stringify(messageData))
-    );
-    console.log("Published to RabbitMQ");
-    res.status(201).send(messageData);
-  } catch (error) {
-    res.status(500).send(error);
-  }
+  // Handle child process events and output
+  pythonScript.stdout.on("data", (data: any) => {
+    // Accumulate the received data
+    newData = Buffer.concat([newData, data]);
+  });
+
+  pythonScript.stderr.on("data", (data: any) => {
+    // Handle errors, if any
+    console.error(data.toString());
+  });
+
+  pythonScript.on("close", async (code: any) => {
+    // Convert the accumulated buffer to a string
+    const newDataString = newData.toString("utf8");
+
+    console.log(newDataString);
+
+    // Parse the received JSON string
+    let imageArray;
+    try {
+      imageArray = JSON.parse(newDataString);
+    } catch (error) {
+      console.error("Failed to parse JSON:", error);
+      return;
+    }
+
+    try {
+      // const newMessage = new MessageModel(messageData);
+      // await newMessage.save();
+      console.log("Saved Message to DB");
+
+      const connection = await amqp.connect("amqp://rabbitmq-service:5672");
+      console.log("Connected to RabbitMQ");
+      const channel = await connection.createChannel();
+      console.log("Created RabbitMQ channel");
+      await channel.assertExchange("message-exchange", "topic", {
+        durable: false,
+      });
+      await channel.publish(
+        "message-exchange",
+        "messi",
+        Buffer.from(JSON.stringify(imageArray))
+      );
+      console.log("Published to RabbitMQ");
+      res.status(201).send(imageArray);
+      console.timeEnd("f1");
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  });
 });
 
 export { router };

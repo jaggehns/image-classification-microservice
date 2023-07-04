@@ -19,14 +19,14 @@ function Home({ data }) {
   );
 }
 
-export async function getServerSideProps() {
-  const res = await fetch(`http://query-service:5200/api/query`);
-  const data = await res.json();
+// export async function getServerSideProps() {
+//   const res = await fetch(`http://query-service:5200/api/query`);
+//   const data = await res.json();
 
-  console.log("server side props ", data);
+//   console.log("server side props ", data);
 
-  // Pass data to the page via props
-  return { props: { data } };
-}
+//   // Pass data to the page via props
+//   return { props: { data } };
+// }
 
 export default Home;
